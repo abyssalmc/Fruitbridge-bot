@@ -45,7 +45,7 @@ async def on_ready():
 ############################
 ## CALCULATE TIER COMMAND ##
 ############################
-
+'''
 @bot.tree.command(
     name="calculate_tier",
     description="Calculate your tier from your list of method subtiers."
@@ -87,7 +87,7 @@ async def calculate_tier(interaction: discord.Interaction, subtiers: str):
 
     await interaction.response.send_message(f"This will give **{full_tier}** with a subtier of **{calculated_subtier:.2f}**.")
     return
-
+'''
 
 ####################
 ## RESULT COMMAND ##
@@ -163,6 +163,11 @@ async def result(interaction: discord.Interaction,
         await msg.add_reaction(emoji)
 
     # give role
+    for i in range (5):
+        removed_role = f"Tier {i + 1} {TIER_EMOJIS.get(i + 1)}"
+        if removed_role in tag.roles:
+            tag.remove_roles(removed_role)
+
     try_role = f"Tier {tier} {TIER_EMOJIS.get(tier)}"
     role = get(interaction.guild.roles, name=try_role)
     if not (role in tag.roles or role is None) :
