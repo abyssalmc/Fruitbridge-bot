@@ -21,7 +21,7 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-bot = commands.Bot(command_prefix='!', intents=intents)
+bot = commands.Bot(command_prefix='!', intents=intents, status=discord.Status.do_not_disturb)
 
 TIER_EMOJIS = {
     1: "💎", 2: "👑", 3: "🏆", 4: "⭐", 5: "✨",
@@ -142,11 +142,11 @@ async def result(interaction: discord.Interaction,
                           f"3. {m3}\n",
                     inline=False)
     embed.add_field(
-        name="Tester                                                                                 ​",
+        name="Tester",
         value=f"<@{interaction.user.id}>\n\n",
         inline=False)
     embed.add_field(name="Placement",
-                    value=f"Subtier: **{subtier} (#{rank})** \n",
+                    value=f"Subtier: **{subtier} (#{rank})**",
                     inline=False)
 
     embed.set_thumbnail(url=f"https://render.crafty.gg/3d/bust/{ign}")
@@ -155,10 +155,12 @@ async def result(interaction: discord.Interaction,
                      icon_url="https://cdn.modrinth.com/data/cached_images/ae331a16111960468ad56a3db0f1d0cdd7e1b4ed.png")
 
 
-    await interaction.channel.send(content=f"{tag.mention}", embed=embed)
+    msg = await interaction.channel.send(content=f"{tag.mention}", embed=embed)
     await interaction.response.send_message(content="The result has been printed! If you made a mistake, your original command was:\n"
                                                     f"```/result ign:{ign} tag:<@{tag.id}> method1:{m1} method2:{m2} method3:{m3} subtier:{subtier} rank:{rank}```",
                                             ephemeral=True)
+    for emoji in ("🔥", "✨", "🎉"):
+        await msg.add_reaction(emoji)
 
     # give role
     try_role = f"Tier {tier} {TIER_EMOJIS.get(tier)}"
