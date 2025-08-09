@@ -331,7 +331,7 @@ async def on_guild_channel_create(channel):
     app_commands.Choice(name="Waterlog distance", value="fruitbridge_distance"),
     app_commands.Choice(name="Powder snow distance", value="fruitbridge_distance"),
     app_commands.Choice(name="Detector rail distance", value="fruitbridge_distance")'''
-'''
+
 def trim_trailing_empty(lst):
     while lst and (not lst[-1] or lst[-1][0].strip() == ''):
         lst.pop()
@@ -399,7 +399,7 @@ async def result(interaction: discord.Interaction,
     await interaction.response.send_message(embed=embed)
 
     return
-'''
+
 #################
 ## MEMBER ROLE ##
 #################
