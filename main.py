@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from discord.ext import commands
 from discord.utils import get
 from discord import app_commands, TextChannel
+from discord.ui import View, button
 from datetime import datetime
 from itertools import zip_longest
 
@@ -47,16 +48,6 @@ TIER_EMOJIS = {
 TIER_COLOURS = {
     1: 0x30a9ff, 2: 0xffcd36, 3: 0xff6f41, 4: 0xff82ad, 5: 0x886eff
 }
-
-def add_line(filename, line):
-    with open(filename, 'a') as f:
-        f.write(line + '\n')
-def clear_file(filename):
-    with open(filename, 'w') as f:
-        pass
-def read_lines(filename):
-    with open(filename, 'r') as f:
-        return [line.strip() for line in f]
 
 
 @bot.event
@@ -332,13 +323,60 @@ async def on_guild_channel_create(channel):
     app_commands.Choice(name="Powder snow distance", value="fruitbridge_distance"),
     app_commands.Choice(name="Detector rail distance", value="fruitbridge_distance")'''
 
+class Paginator(View):
+    def __init__(self, embeds: list[discord.Embed], author: discord.User):
+        super().__init__(timeout=180)  # timeout in seconds
+        self.embeds = embeds
+        self.index = 0
+        self.author_id = author.id
+
+        # disable Previous on first page
+        if len(embeds) <= 1:
+            self.prev_button.disabled = True
+            self.next_button.disabled = True
+        else:
+            self.prev_button.disabled = True
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        # only allow the original author
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message(
+                "Only the person who ran the command can do this!",
+                ephemeral=True
+            )
+            return False
+        return True
+
+    @button(label="⬅️ Previous", style=discord.ButtonStyle.secondary)
+    async def prev_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # step back
+        self.index -= 1
+        # update disabled state
+        self.next_button.disabled = False
+        if self.index == 0:
+            button.disabled = True
+
+        await interaction.response.edit_message(embed=self.embeds[self.index], view=self)
+
+    @button(label="Next ➡️", style=discord.ButtonStyle.secondary)
+    async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # step forward
+        self.index += 1
+        # update disabled state
+        self.prev_button.disabled = False
+        if self.index == len(self.embeds) - 1:
+            button.disabled = True
+
+        await interaction.response.edit_message(embed=self.embeds[self.index], view=self)
+
+
 def trim_trailing_empty(lst):
     while lst and (not lst[-1] or lst[-1][0].strip() == ''):
         lst.pop()
     return lst
 
 def get_12b_data():
-    shit = sheet.values().get(spreadsheetId=sheet_id, range='B3:Y34').execute().get('values', [])
+    shit = sheet.values().get(spreadsheetId=sheet_id, range='Leaderboard!B3:Y34').execute().get('values', [])
     shit = list(zip_longest(*shit, fillvalue=""))
 
     countries = shit[0] + shit[5] + shit[10] + shit[15] + shit[20]
@@ -351,6 +389,24 @@ def get_12b_data():
 
     return [countries, names, values]
 
+
+def get_distance_data(selection):
+    shit = sheet.values().get(spreadsheetId=sheet_id, range=f'Distance!{selection}').execute().get('values', [])
+    shit = list(zip_longest(*shit, fillvalue=""))
+
+    countries = shit[0]
+    names = shit[2]
+    values = shit[3]
+
+    countries = [s for s in countries if s.strip()]
+    names = [s for s in names if s.strip()]
+    values = [s for s in values if s.strip()]
+
+    print(f"{len(countries)} {len(names)} {len(values)}")
+
+    return countries, names, values
+
+'''
 @bot.tree.command(
     name="leaderboard",
     description="Print the leaderboard for the specified category"
@@ -359,54 +415,101 @@ def get_12b_data():
     category="Enter the category you'd like to see",
 )
 @app_commands.choices(category=[
-    app_commands.Choice(name="Java 12b", value="java_12b")
+    app_commands.Choice(name="Java 12b", value="java_12b"),
+    app_commands.Choice(name="Distance", value="distance")
 ])
 
-async def result(interaction: discord.Interaction,
+async def leaderboard(interaction: discord.Interaction,
     category: app_commands.Choice[str]
     ):
 
     type = "leaderboard" if category.name == "Java 12b" else "distance"
 
-    embed = discord.Embed(title=f"{category.name} {type}  🏆 ✨",
-                          url="https://docs.google.com/spreadsheets/d/1LlWii5IAM34-Dlei9wZfDm6lMjdrFvGX7F5-tJgd35s",
-                          colour=TIER_COLOURS.get(2)
-                          )
+    await interaction.response.send_message("-# Fetching data...")
 
-    countries, names, values = get_12b_data()
+    # 12b embed handling
+    if category.name == "Java 12b":
+        countries, names, values = get_12b_data()
 
-    print(len(values), len(names), len(countries))
-    lb_string = ""
+        npages = math.floor(len(values) / 10)
+        pages = []
+        firstpage = discord.Embed()
 
-    for i in range(min(10, len(values))):
-        if category.name == "Java 12b":
-            lb_string += f"`{values[i]}`ﾠ{names[i]} {countries[i]}\n"
-        else:
-            lb_string += f"`{values[i]}`ﾠ{names[i]} {countries[i]}\n"
+        for i in range(npages + 1):
+            lb_string = ""
+            embed = discord.Embed(title=f"{category.name} {type}  🏆 ✨",
+                                  url="https://docs.google.com/spreadsheets/d/1LlWii5IAM34-Dlei9wZfDm6lMjdrFvGX7F5-tJgd35s",
+                                  colour=TIER_COLOURS.get(2)
+                                  )
 
-    title = "Top 10 players" if category.name == "Java 12b" else "Top 10 records"
-    embed.add_field(name=title,
-                value=lb_string,
-                inline=False)
+            title = "Top players"
 
+            embed.set_footer(text=f"Page {i + 1}/{npages + 1} ​ • ​ Fruitbridging Tierlist",
+                         icon_url="https://cdn.modrinth.com/data/cached_images/ae331a16111960468ad56a3db0f1d0cdd7e1b4ed.png")
 
-    embed.add_field(name="Full leaderboard",
-                    value="[Fruitbridging Tierlist](https://docs.google.com/spreadsheets/d/1LlWii5IAM34-Dlei9wZfDm6lMjdrFvGX7F5-tJgd35s)",
-                    inline=False)
-    embed.set_footer(text="Fruitbridging Tierlist Discord",
-                     icon_url="https://cdn.modrinth.com/data/cached_images/ae331a16111960468ad56a3db0f1d0cdd7e1b4ed.png")
+            max = 10;
+            if i == npages:
+                max = 10 * (len(values) / 10 - npages)
 
-    await interaction.response.send_message(embed=embed)
+            intmax = int(max)
+
+            for j in range(10 * i, 10 * i + intmax):
+                lb_string += f"`{values[j]}` ​ {names[j].replace("_", "\\_")} {countries[j]}\n"
+
+            embed.add_field(name=title,
+                            value=lb_string,
+                            inline=False)
+
+            embed.add_field(name="Full leaderboard",
+                            value="[Fruitbridging Tierlist](https://docs.google.com/spreadsheets/d/1LlWii5IAM34-Dlei9wZfDm6lMjdrFvGX7F5-tJgd35s)",
+                            inline=False)
+
+            pages.append(embed)
+            if i == 0:
+                firstpage = embed
+
+        view = Paginator(pages, interaction.user)
+        await interaction.edit_original_response(content=None, embed=firstpage, view=view)
+
+    # distance lb
+    else:
+        countries, names, values = [], [], []
+
+        for cell_range in ["B3:E35", "G3:J35", "L3:O35", "Q3:T35", "V3:Y35", "AA3:AD35"]:
+            c, n, v = get_distance_data(cell_range)
+            countries.append(c)
+            names.append(n)
+            values.append(v)
+
+        embed = discord.Embed(title=f"Fruitbridge {type}  🏆 ✨",
+                              url="https://docs.google.com/spreadsheets/d/1LlWii5IAM34-Dlei9wZfDm6lMjdrFvGX7F5-tJgd35s",
+                              colour=TIER_COLOURS.get(2)
+                              )
+
+        title = "Top records"
+        lb_string = ""
+
+        for j in range(min(10, len(values[0]))):
+            lb_string += f"`{values[0][j]}` ​ {names[0][j].replace("_", "\\_")} {countries[0][j]}\n"
+
+        embed.add_field(name=title,
+                        value=lb_string,
+                        inline=False)
+
+        embed.set_footer(text=f"Fruitbridging Tierlist Discord",
+                         icon_url="https://cdn.modrinth.com/data/cached_images/ae331a16111960468ad56a3db0f1d0cdd7e1b4ed.png")
+
+        await interaction.edit_original_response(content=None, embed=embed)
 
     return
-
+'''
 #################
 ## MEMBER ROLE ##
 #################
 
 @bot.event
 async def on_member_join(member: discord.Member):
-    role = get(member.guild.roles, name="Fruitbridger 💚")
+    role = get(member.guild.roles, name="Fruitbridger 🍏")
 
     try:
         await member.add_roles(role, reason="Auto-assign on join")
