@@ -10,6 +10,7 @@ from discord import app_commands, TextChannel
 from discord.ui import View, button
 from datetime import datetime
 from itertools import zip_longest
+import asyncio
 
 import keep_alive
 
@@ -38,7 +39,6 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-
 bot = commands.Bot(command_prefix='!', intents=intents, status=discord.Status.do_not_disturb)
 
 TIER_EMOJIS = {
@@ -61,7 +61,7 @@ async def on_ready():
 
     # add roles
     for guild in bot.guilds:
-        role = get(guild.roles, name="Fruitbridger 💚")
+        role = get(guild.roles, name="Fruitbridger 🍏")
 
         for member in guild.members:
             # skip bots or anyone who already has it
@@ -69,6 +69,7 @@ async def on_ready():
                 continue
             try:
                 await member.add_roles(role, reason="Startup add roles")
+                await asyncio.sleep(1)
             except Exception as e:
                 print(f"   [ERROR] Failed on {member}: {e}")
 
