@@ -212,13 +212,6 @@ async def result(interaction: discord.Interaction,
 
     return
 
-@bot.event
-async def on_guild_channel_create(channel):
-    # only text-channels, and only those with “ticket” in the name
-    if isinstance(channel, TextChannel) and "ticket" in channel.name.lower():
-        await channel.send(
-            "Welcome to your ticket! A staff member will be with you shortly."
-        )
 
 #################
 ## SAY COMMAND ##
@@ -306,7 +299,7 @@ async def result(interaction: discord.Interaction):
 @bot.event
 async def on_guild_channel_create(channel):
     if isinstance(channel, TextChannel) and "ticket" in channel.name.lower():
-        time.sleep(2)
+        await asyncio.sleep(2)
         await channel.send(
             "Hello! A staff member will be with you shortly.\n\n"
             "Send clips of your hardest methods, alongside your Minecraft username and the country you'd like to represent.\n"
