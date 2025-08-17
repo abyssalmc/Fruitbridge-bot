@@ -186,7 +186,10 @@ async def result(interaction: discord.Interaction,
                     value=f"Subtier: **{subtier} (#{rank})**",
                     inline=False)
 
-    embed.set_thumbnail(url=f"https://render.crafty.gg/3d/bust/{ign}")
+    if "Sonata" in ign:
+        embed.set_thumbnail(url=f"https://render.crafty.gg/3d/bust/Rainbow_Puppy9")
+    else:
+        embed.set_thumbnail(url=f"https://render.crafty.gg/3d/bust/{ign}")
 
     embed.set_footer(text="Fruitbridging Tierlist Discord",
                      icon_url="https://cdn.modrinth.com/data/cached_images/ae331a16111960468ad56a3db0f1d0cdd7e1b4ed.png")
