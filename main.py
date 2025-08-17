@@ -74,6 +74,7 @@ async def on_ready():
                 print(f"   [ERROR] Failed on {member}: {e}")
 
 
+
     print(f"Fruitbridge bot is now online. ({bot.user})")
 
 
