@@ -783,6 +783,27 @@ async def help(interaction: discord.Interaction):
                                             "Ventriloquises fruitbridge bot.\n"
                                             )
 
+##################
+## HELP COMMAND ##
+##################
+@bot.tree.command(
+    name="help",
+    description="Info on all of the available commands."
+)
+async def help(interaction: discord.Interaction):
+    await interaction.response.send_message(content=
+                                            "`/leaderboard <category>`\n"
+                                            "Prints the leaderboard for the specified category.\n"
+                                            "`/player_stats <minecraft_ign>`\n"
+                                            "Returns the stats of the specified player.\n"
+                                            "`/tierlist`\n"
+                                            "Sends a link to the tierlist spreadsheet.\n"
+                                            "`/fun_fact`\n"
+                                            "Finds an epic and cool math fact!\n"
+                                            "`/say <message>`\n"
+                                            "Ventriloquises fruitbridge bot.\n"
+                                            )
+
 #################
 ## MEMBER ROLE ##
 #################
