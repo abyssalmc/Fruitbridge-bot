@@ -186,7 +186,7 @@ async def result(interaction: discord.Interaction,
                     value=f"Subtier: **{subtier} (#{rank})**",
                     inline=False)
 
-    if "Sonata" in ign:
+    if "sonata" in ign.lower():
         embed.set_thumbnail(url=f"https://render.crafty.gg/3d/bust/Rainbow_Puppy9")
     else:
         embed.set_thumbnail(url=f"https://render.crafty.gg/3d/bust/{ign}")
@@ -313,13 +313,6 @@ async def on_guild_channel_create(channel):
 #########################
 ## LEADERBOARD COMMAND ##
 #########################
-
-''',
-    app_commands.Choice(name="Classic 360 distance", value="fruitbridge_distance"),
-    app_commands.Choice(name="Ladder distance", value="fruitbridge_distance"),
-    app_commands.Choice(name="Waterlog distance", value="fruitbridge_distance"),
-    app_commands.Choice(name="Powder snow distance", value="fruitbridge_distance"),
-    app_commands.Choice(name="Detector rail distance", value="fruitbridge_distance")'''
 
 class Paginator(View):
     def __init__(self, embeds: list[discord.Embed], author: discord.User):
@@ -529,7 +522,7 @@ async def leaderboard(interaction: discord.Interaction,
     else:
         countries, names, values = [], [], []
 
-        for cell_range in ["B3:E35", "G3:J35", "L3:O35", "Q3:T35", "V3:Y35"]:
+        for cell_range in ["B3:E55", "G3:J55", "L3:O55", "Q3:T55", "V3:Y55"]:
             c, n, v = get_distance_data(cell_range)
             countries.append(c)
             names.append(n)
@@ -569,6 +562,160 @@ async def leaderboard(interaction: discord.Interaction,
 
         view = PaginationView(pages, interaction.user)
         await interaction.edit_original_response(content=None, embed=firstpage, view=view)
+
+    return
+
+##########################
+## PLAYER STATS COMMAND ##
+##########################
+
+country_to_region = {
+    # Africa
+    "DZ": "Africa", "AO": "Africa", "BJ": "Africa", "BW": "Africa", "BF": "Africa",
+    "BI": "Africa", "CM": "Africa", "CV": "Africa", "CF": "Africa", "TD": "Africa",
+    "KM": "Africa", "CG": "Africa", "CD": "Africa", "DJ": "Africa", "EG": "Africa",
+    "GQ": "Africa", "ER": "Africa", "SZ": "Africa", "ET": "Africa", "GA": "Africa",
+    "GM": "Africa", "GH": "Africa", "GN": "Africa", "GW": "Africa", "CI": "Africa",
+    "KE": "Africa", "LS": "Africa", "LR": "Africa", "LY": "Africa", "MG": "Africa",
+    "MW": "Africa", "ML": "Africa", "MR": "Africa", "MU": "Africa", "YT": "Africa",
+    "MA": "Africa", "MZ": "Africa", "NA": "Africa", "NE": "Africa", "NG": "Africa",
+    "RE": "Africa", "RW": "Africa", "SH": "Africa", "ST": "Africa", "SN": "Africa",
+    "SC": "Africa", "SL": "Africa", "SO": "Africa", "ZA": "Africa", "SS": "Africa",
+    "SD": "Africa", "TZ": "Africa", "TG": "Africa", "TN": "Africa", "UG": "Africa",
+    "EH": "Africa", "ZM": "Africa", "ZW": "Africa",
+
+    # Asia
+    "AF": "Asia", "AM": "Asia", "AZ": "Asia", "BH": "Asia", "BD": "Asia",
+    "BT": "Asia", "BN": "Asia", "KH": "Asia", "CN": "Asia", "CY": "Asia",
+    "GE": "Asia", "IN": "Asia", "ID": "Asia", "IR": "Asia", "IQ": "Asia",
+    "IL": "Asia", "JP": "Asia", "JO": "Asia", "KZ": "Asia", "KW": "Asia",
+    "KG": "Asia", "LA": "Asia", "LB": "Asia", "MY": "Asia", "MV": "Asia",
+    "MN": "Asia", "MM": "Asia", "NP": "Asia", "KP": "Asia", "OM": "Asia",
+    "PK": "Asia", "PS": "Asia", "PH": "Asia", "QA": "Asia", "SA": "Asia",
+    "SG": "Asia", "KR": "Asia", "LK": "Asia", "SY": "Asia", "TW": "Asia",
+    "TJ": "Asia", "TH": "Asia", "TL": "Asia", "TR": "Asia", "TM": "Asia",
+    "AE": "Asia", "UZ": "Asia", "VN": "Asia", "YE": "Asia",
+
+    # Europe
+    "AL": "Europe", "AD": "Europe", "AT": "Europe", "BY": "Europe", "BE": "Europe",
+    "BA": "Europe", "BG": "Europe", "HR": "Europe", "CY": "Europe", "CZ": "Europe",
+    "DK": "Europe", "EE": "Europe", "FI": "Europe", "FR": "Europe", "DE": "Europe",
+    "GR": "Europe", "HU": "Europe", "IS": "Europe", "IE": "Europe", "IT": "Europe",
+    "LV": "Europe", "LI": "Europe", "LT": "Europe", "LU": "Europe", "MT": "Europe",
+    "MD": "Europe", "MC": "Europe", "ME": "Europe", "NL": "Europe", "MK": "Europe",
+    "NO": "Europe", "PL": "Europe", "PT": "Europe", "RO": "Europe", "RU": "Europe",
+    "SM": "Europe", "RS": "Europe", "SK": "Europe", "SI": "Europe", "ES": "Europe",
+    "SE": "Europe", "CH": "Europe", "UA": "Europe", "GB": "Europe", "VA": "Europe",
+
+    # North America
+    "AG": "North America", "BS": "North America", "BB": "North America",
+    "BZ": "North America", "BM": "North America", "CA": "North America",
+    "CR": "North America", "CU": "North America", "DM": "North America",
+    "DO": "North America", "SV": "North America", "GL": "North America",
+    "GD": "North America", "GP": "North America", "GT": "North America",
+    "HT": "North America", "HN": "North America", "JM": "North America",
+    "MX": "North America", "MS": "North America", "NI": "North America",
+    "PA": "North America", "PR": "North America", "KN": "North America",
+    "LC": "North America", "VC": "North America", "TT": "North America",
+    "US": "North America", "VG": "North America", "VI": "North America",
+
+    # South America
+    "AR": "South America", "BO": "South America", "BR": "South America",
+    "CL": "South America", "CO": "South America", "EC": "South America",
+    "FK": "South America", "GF": "South America", "GY": "South America",
+    "PY": "South America", "PE": "South America", "SR": "South America",
+    "UY": "South America", "VE": "South America",
+
+    # Oceania
+    "AS": "Oceania", "AU": "Oceania", "CK": "Oceania", "FJ": "Oceania",
+    "PF": "Oceania", "GU": "Oceania", "KI": "Oceania", "MH": "Oceania",
+    "FM": "Oceania", "NR": "Oceania", "NC": "Oceania", "NZ": "Oceania",
+    "NU": "Oceania", "NF": "Oceania", "MP": "Oceania", "PW": "Oceania",
+    "PG": "Oceania", "PN": "Oceania", "WS": "Oceania", "SB": "Oceania",
+    "TK": "Oceania", "TO": "Oceania", "TV": "Oceania", "UM": "Oceania",
+    "VU": "Oceania", "WF": "Oceania",
+}
+
+@bot.tree.command(
+    name="player_stats",
+    description="Returns the stats of the specified player."
+)
+@app_commands.describe(
+    message="Minecraft IGN (e.g. AbyssalMC or _Talyn_)"
+)
+async def result(interaction: discord.Interaction,
+    message: str,
+    ):
+    await interaction.response.defer(thinking=False)
+
+    countries, names, values = get_12b_data()
+    dcountries, dnames, dvalues = get_distance_data("B3:E55")
+
+    lowercase_names = [name.lower() for name in names]
+    lowercase_dnames = [name.lower() for name in dnames]
+
+    if message.lower() in lowercase_names:
+        index = next(i for i, item in enumerate(names) if item.lower() == message.lower())
+
+        subtier = float(values[index])
+        tier = math.floor(subtier)
+        half_tier = math.floor(subtier * 2) % 2
+        full_tier = f"HT{tier}  {TIER_EMOJIS.get(tier)}" if half_tier == 0 else f"LT{tier}  {TIER_EMOJIS.get(tier)}"
+
+        embed = discord.Embed(title=f"{names[index]}",
+                              colour=TIER_COLOURS.get(tier)
+                              )
+        title = ""
+
+        # distance check
+        distance = "No records"
+        if message.lower() in lowercase_dnames:
+            dindex = next(i for i, item in enumerate(dnames) if item.lower() == message.lower())
+            distance = f"**{dvalues[dindex]} blocks** (**#{dindex+1}**)"
+
+        # region
+        region = country_to_region.get(countries[index], "Unknown")
+
+        if region != "Unknown":
+            ranks_above = 0
+            if index == 0:
+                ranks_above = 1
+
+            for i in range(index):
+                temp_region = country_to_region.get(countries[index-i], "Unknown")
+                if temp_region == region:
+                    ranks_above += 1
+
+
+        data = (f"Tier: **{full_tier}**\n"
+                f"Subtier: **{subtier}** (**#{index+1}**)\n"
+                f"Distance PB: {distance}\n"
+                f"Region: **{region}** (**#{ranks_above}**)\n"
+                f"Country: **{countries[index]}**  :flag_{countries[index].lower()}:")
+        embed.add_field(name=title,
+                        value=data,
+                        inline=False)
+
+        if "sonata" in message.lower():
+            embed.set_thumbnail(url=f"https://render.crafty.gg/3d/bust/Rainbow_Puppy9")
+        else:
+            embed.set_thumbnail(url=f"https://render.crafty.gg/3d/bust/{names[index]}")
+
+
+        embed.set_footer(text=f"Fruitbridging Tierlist Discord",
+                         icon_url="https://cdn.modrinth.com/data/cached_images/ae331a16111960468ad56a3db0f1d0cdd7e1b4ed.png")
+
+        await interaction.followup.send(content=None, embed=embed)
+    else:
+        embed = discord.Embed(title=f"{message}")
+
+        embed.set_footer(text=f"Fruitbridging Tierlist Discord",
+                         icon_url="https://cdn.modrinth.com/data/cached_images/ae331a16111960468ad56a3db0f1d0cdd7e1b4ed.png")
+
+        embed.add_field(name=f'Player could not be found.',
+                        value="You may be able to find them [here!](https://docs.google.com/spreadsheets/d/1LlWii5IAM34-Dlei9wZfDm6lMjdrFvGX7F5-tJgd35s)",
+                        inline=False)
+        await interaction.followup.send(content=None, embed=embed)
 
     return
 
