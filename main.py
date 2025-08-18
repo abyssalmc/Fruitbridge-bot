@@ -367,6 +367,64 @@ class Paginator(View):
 
         await interaction.response.edit_message(embed=self.embeds[self.index], view=self)
 
+distance_categories = ["Fruitbridge", "Ladder", "Waterlog", "Powder snow", "Detector rail"]
+
+class DropdownPages(discord.ui.Select):
+    def __init__(self, pages):
+        self.pages = pages
+        self.current_page = 0
+        options = self._build_options()
+        super().__init__(
+            placeholder=distance_categories[self.current_page],
+            min_values=1,
+            max_values=1,
+            options=options
+        )
+
+    def _build_options(self):
+        opts = []
+        for i in range(len(self.pages)):
+            opts.append(
+                discord.SelectOption(
+                    label=distance_categories[i],
+                    value=str(i),
+                    default=(i == self.current_page)
+                )
+            )
+        return opts
+
+    async def callback(self, interaction: discord.Interaction):
+        # parse which page they picked
+        idx = int(self.values[0])
+        self.current_page = idx
+
+        # rebuild the options list so that the new page is default=True
+        self.options = self._build_options()
+
+        # update the placeholder (optional)
+        self.placeholder = distance_categories[self.current_page]
+
+        # edit the message with the new embed + updated view
+        embed = self.pages[self.current_page]
+        await interaction.response.edit_message(embed=embed, view=self.view)
+
+
+class PaginationView(discord.ui.View):
+    def __init__(self, pages, author: discord.User, *, timeout=120):
+        super().__init__(timeout=timeout)
+        self.author = author
+        # add our dropdown to the view
+        self.add_item(DropdownPages(pages))
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        # only allow the original author
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message(
+                "Only the person who ran the command can do this!",
+                ephemeral=True
+            )
+            return False
+        return True
 
 def trim_trailing_empty(lst):
     while lst and (not lst[-1] or lst[-1][0].strip() == ''):
@@ -387,8 +445,8 @@ def get_12b_data():
 
     return [countries, names, values]
 
-
 def get_distance_data(selection):
+
     shit = sheet.values().get(spreadsheetId=sheet_id, range=f'Distance!{selection}').execute().get('values', [])
     shit = list(zip_longest(*shit, fillvalue=""))
 
@@ -400,11 +458,9 @@ def get_distance_data(selection):
     names = [s for s in names if s.strip()]
     values = [s for s in values if s.strip()]
 
-    print(f"{len(countries)} {len(names)} {len(values)}")
-
     return countries, names, values
 
-'''
+
 @bot.tree.command(
     name="leaderboard",
     description="Print the leaderboard for the specified category"
@@ -452,7 +508,7 @@ async def leaderboard(interaction: discord.Interaction,
             intmax = int(max)
 
             for j in range(10 * i, 10 * i + intmax):
-                lb_string += f"`{values[j]}` ​ {names[j].replace("_", "\\_")} {countries[j]}\n"
+                lb_string += f"`{values[j]}` ​ {names[j].replace("_", "\\_")} :flag_{countries[j].lower()}:\n"
 
             embed.add_field(name=title,
                             value=lb_string,
@@ -473,34 +529,49 @@ async def leaderboard(interaction: discord.Interaction,
     else:
         countries, names, values = [], [], []
 
-        for cell_range in ["B3:E35", "G3:J35", "L3:O35", "Q3:T35", "V3:Y35", "AA3:AD35"]:
+        for cell_range in ["B3:E35", "G3:J35", "L3:O35", "Q3:T35", "V3:Y35"]:
             c, n, v = get_distance_data(cell_range)
             countries.append(c)
             names.append(n)
             values.append(v)
 
-        embed = discord.Embed(title=f"Fruitbridge {type}  🏆 ✨",
-                              url="https://docs.google.com/spreadsheets/d/1LlWii5IAM34-Dlei9wZfDm6lMjdrFvGX7F5-tJgd35s",
-                              colour=TIER_COLOURS.get(2)
-                              )
+        pages = []
+        firstpage = discord.Embed()
 
-        title = "Top records"
-        lb_string = ""
+        for i in range(5):
+            embed = discord.Embed(title=f"{distance_categories[i]} {type}  🏆 ✨",
+                                  url="https://docs.google.com/spreadsheets/d/1LlWii5IAM34-Dlei9wZfDm6lMjdrFvGX7F5-tJgd35s",
+                                  colour=TIER_COLOURS.get(2)
+                                  )
+            title = "Top 10 records"
+            lb_string = ""
 
-        for j in range(min(10, len(values[0]))):
-            lb_string += f"`{values[0][j]}` ​ {names[0][j].replace("_", "\\_")} {countries[0][j]}\n"
 
-        embed.add_field(name=title,
-                        value=lb_string,
-                        inline=False)
+            # data
+            max_len = len(values[i][0])
+            for j in range(min(10, len(values[i]))):
+                lb_string += f"`{values[i][j].rjust(max_len)}` ​ {names[i][j].replace("_", "\\_")} :flag_{countries[i][j].lower()}:\n"
 
-        embed.set_footer(text=f"Fruitbridging Tierlist Discord",
-                         icon_url="https://cdn.modrinth.com/data/cached_images/ae331a16111960468ad56a3db0f1d0cdd7e1b4ed.png")
+            embed.add_field(name=title,
+                            value=lb_string,
+                            inline=False)
 
-        await interaction.edit_original_response(content=None, embed=embed)
+            embed.add_field(name="Full leaderboard",
+                            value="[Fruitbridging Tierlist](https://docs.google.com/spreadsheets/d/1LlWii5IAM34-Dlei9wZfDm6lMjdrFvGX7F5-tJgd35s)",
+                            inline=False)
+
+            embed.set_footer(text=f"Fruitbridging Tierlist Discord",
+                             icon_url="https://cdn.modrinth.com/data/cached_images/ae331a16111960468ad56a3db0f1d0cdd7e1b4ed.png")
+
+            pages.append(embed)
+            if i == 0:
+                firstpage = embed
+
+        view = PaginationView(pages, interaction.user)
+        await interaction.edit_original_response(content=None, embed=firstpage, view=view)
 
     return
-'''
+
 #################
 ## MEMBER ROLE ##
 #################
