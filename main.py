@@ -130,6 +130,13 @@ async def calculate_tier(interaction: discord.Interaction, subtiers: str):
 ## RESULT COMMAND ##
 ####################
 
+def col_num_to_letter(n: int) -> str:
+    letters = ""
+    while n:
+        n, rem = divmod(n-1, 26)
+        letters = chr(65 + rem) + letters
+    return letters
+
 @bot.tree.command(
     name="result",
     description="Make a tier test result for Java 12b"
@@ -137,20 +144,10 @@ async def calculate_tier(interaction: discord.Interaction, subtiers: str):
 @app_commands.describe(
     ign="Minecraft username (e.g. AbyssalMC)",
     tag="Discord tag (e.g. @abyssal)",
-    method1="Hardest method (e.g. Waterlog detector rail (1.2))",
-    method2="Second hardest (e.g. Shear snow golem (1.3))",
-    method3="Third hardest (e.g. Inventory tap PS (1.4))",
-    subtier="Subtier (e.g. 1.315)",
-    rank="Rank (e.g. 1)"
 )
 async def result(interaction: discord.Interaction,
     ign: str,
     tag: discord.Member,
-    method1: str,
-    method2: str,
-    method3: str,
-    subtier: float,
-    rank: int
     ):
 
     if not interaction.user.guild_permissions.administrator:
@@ -159,12 +156,23 @@ async def result(interaction: discord.Interaction,
             ephemeral=True)
         return
 
-    # strip whitespace
-    m1 = method1.strip()
-    m2 = method2.strip()
-    m3 = method3.strip()
+    await interaction.response.defer(thinking=False)
+
+    countries, names, values = get_12b_data()
+    lowercase_names = [name.lower() for name in names]
+
+    if ign.lower() in lowercase_names:
+        index = next(i for i, item in enumerate(names) if item.lower() == ign.lower())
+    else:
+        await interaction.response.send_message(
+            content="This player isn't on the leaderboard!",
+            ephemeral=True)
+        return
+
+
 
     # get full tier
+    subtier = float(values[index])
     tier = math.floor(subtier)
     half_tier = math.floor(subtier * 2) % 2
     full_tier = f"HT{tier}  {TIER_EMOJIS.get(tier)}" if half_tier == 0 else f"LT{tier}  {TIER_EMOJIS.get(tier)}"
@@ -173,17 +181,31 @@ async def result(interaction: discord.Interaction,
                           colour=TIER_COLOURS.get(tier),
                           timestamp=datetime.now())
 
+    # methods
+    row2 = sheet.values().get(spreadsheetId=sheet_id, range="'Tierlist Data'!2:2").execute().get('values', [[]])[0]
+    try:
+        col_index = row2.index(f"{ign}")
+    except ValueError:
+        await interaction.response.send_message(
+            content="This player isn't on the Tierlist Data section. Make sure your capitalisation is correct!",
+            ephemeral=True)
+        return
+
+    col_letter = col_num_to_letter(col_index+1)
+
+    range_below = f"'Tierlist Data'!{col_letter}5:{col_num_to_letter(col_index+2)}7"
+    print(range_below)
+
+    cells_below = sheet.values().get(spreadsheetId=sheet_id, range=range_below).execute().get('values', [])
+    m1 = f"{cells_below[0][0]} ({cells_below[0][1]})"
+    m2 = f"{cells_below[1][0]} ({cells_below[1][1]})"
+    m3 = f"{cells_below[2][0]} ({cells_below[2][1]})"
+
+
     embed.add_field(name="Hardest methods",
                     value=f"1. {m1}\n"
                           f"2. {m2}\n"
                           f"3. {m3}\n",
-                    inline=False)
-    embed.add_field(
-        name="Tester",
-        value=f"<@{interaction.user.id}>\n\n",
-        inline=False)
-    embed.add_field(name="Placement",
-                    value=f"Subtier: **{subtier} (#{rank})**",
                     inline=False)
 
     if "sonata" in ign.lower():
@@ -191,14 +213,34 @@ async def result(interaction: discord.Interaction,
     else:
         embed.set_thumbnail(url=f"https://render.crafty.gg/3d/bust/{ign}")
 
+
+    # region
+    country = countries[index]
+    region = country_to_region.get(country, "Unknown")
+
+    if region != "Unknown":
+        ranks_above = 0
+        if index == 0:
+            ranks_above = 1
+
+        for i in range(index):
+            temp_region = country_to_region.get(countries[index - i], "Unknown")
+            if temp_region == region:
+                ranks_above += 1
+
+
+
+    embed.add_field(name="Placement",
+                    value=f"Subtier: **{subtier} (#{index+1})**\n"
+                          f"Region: **{region}** :flag_{country.lower()}: **(#{ranks_above})**",
+                    inline=False)
+
+
     embed.set_footer(text="Fruitbridging Tierlist Discord",
                      icon_url="https://cdn.modrinth.com/data/cached_images/ae331a16111960468ad56a3db0f1d0cdd7e1b4ed.png")
 
 
-    msg = await interaction.channel.send(content=f"{tag.mention}", embed=embed)
-    await interaction.response.send_message(content="The result has been printed! If you made a mistake, your original command was:\n"
-                                                    f"```/result ign:{ign} tag:<@{tag.id}> method1:{m1} method2:{m2} method3:{m3} subtier:{subtier} rank:{rank}```",
-                                            ephemeral=True)
+    msg = await interaction.followup.send(content=f"{tag.mention}", embed=embed)
 
     for emoji in ("🔥", "✨", "🎉"):
         await msg.add_reaction(emoji)
@@ -643,7 +685,7 @@ country_to_region = {
 @app_commands.describe(
     message="Minecraft IGN (e.g. AbyssalMC or _Talyn_)"
 )
-async def result(interaction: discord.Interaction,
+async def player_stats(interaction: discord.Interaction,
     message: str,
     ):
     await interaction.response.defer(thinking=False)
@@ -688,9 +730,9 @@ async def result(interaction: discord.Interaction,
 
 
         data = (f"Tier: **{full_tier}**\n"
-                f"Subtier: **{subtier}** (**#{index+1}**)\n"
+                f"Subtier: **{subtier}** **(#{index+1})**\n"
                 f"Distance PB: {distance}\n"
-                f"Region: **{region}** (**#{ranks_above}**)\n"
+                f"Region: **{region}** **(#{ranks_above})**\n"
                 f"Country: **{countries[index]}**  :flag_{countries[index].lower()}:")
         embed.add_field(name=title,
                         value=data,
@@ -718,6 +760,27 @@ async def result(interaction: discord.Interaction,
         await interaction.followup.send(content=None, embed=embed)
 
     return
+
+##################
+## HELP COMMAND ##
+##################
+@bot.tree.command(
+    name="help",
+    description="Info on all of the available commands."
+)
+async def help(interaction: discord.Interaction):
+    await interaction.response.send_message(content=
+                                            "`/leaderboard <category>`\n"
+                                            "Prints the leaderboard for the specified category.\n"
+                                            "`/player_stats <minecraft_ign>`\n"
+                                            "Returns the stats of the specified player.\n"
+                                            "`/tierlist`\n"
+                                            "Sends a link to the tierlist spreadsheet.\n"
+                                            "`/fun_fact`\n"
+                                            "Finds an epic and cool math fact!\n"
+                                            "`/say <message>`\n"
+                                            "Ventriloquises fruitbridge bot.\n"
+                                            )
 
 #################
 ## MEMBER ROLE ##
