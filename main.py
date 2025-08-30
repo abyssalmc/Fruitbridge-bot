@@ -41,6 +41,19 @@ intents.members = True
 
 bot = commands.Bot(command_prefix='!', intents=intents, status=discord.Status.do_not_disturb)
 
+
+# 1) configure root logger
+logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)s %(levelname)8s %(name)s: %(message)s")
+
+# 2) crank up discord.py HTTP to DEBUG
+logging.getLogger("discord.http").setLevel(logging.DEBUG)
+
+# (optionally) quiet some of the noisier libraries
+logging.getLogger("websockets").setLevel(logging.INFO)
+logging.getLogger("discord.gateway").setLevel(logging.INFO)
+
+
 TIER_EMOJIS = {
     1: "💎", 2: "👑", 3: "🏆", 4: "⭐", 5: "✨",
 }
@@ -82,7 +95,7 @@ async def on_ready():
 ############################
 ## CALCULATE TIER COMMAND ##
 ############################
-'''
+
 @bot.tree.command(
     name="calculate_tier",
     description="Calculate your tier from your list of method subtiers."
@@ -124,7 +137,7 @@ async def calculate_tier(interaction: discord.Interaction, subtiers: str):
 
     await interaction.response.send_message(f"This will give **{full_tier}** with a subtier of **{calculated_subtier:.2f}**.")
     return
-'''
+
 
 ####################
 ## RESULT COMMAND ##
@@ -495,7 +508,7 @@ def get_distance_data(selection):
 
     return countries, names, values
 
-'''
+
 @bot.tree.command(
     name="leaderboard",
     description="Print the leaderboard for the specified category"
@@ -606,7 +619,7 @@ async def leaderboard(interaction: discord.Interaction,
         await interaction.edit_original_response(content=None, embed=firstpage, view=view)
 
     return
-'''
+
 
 ##########################
 ## PLAYER STATS COMMAND ##
@@ -678,16 +691,16 @@ country_to_region = {
     "TK": "Oceania", "TO": "Oceania", "TV": "Oceania", "UM": "Oceania",
     "VU": "Oceania", "WF": "Oceania",
 }
-'''
+
 @bot.tree.command(
     name="player_stats",
     description="Returns the stats of the specified player."
 )
 @app_commands.describe(
-    message="Minecraft IGN (e.g. AbyssalMC or _Talyn_)"
+    ign="Minecraft IGN (e.g. AbyssalMC or _Talyn_)"
 )
 async def player_stats(interaction: discord.Interaction,
-    message: str,
+    ign: str,
     ):
     await interaction.response.defer(thinking=False)
 
@@ -697,8 +710,8 @@ async def player_stats(interaction: discord.Interaction,
     lowercase_names = [name.lower() for name in names]
     lowercase_dnames = [name.lower() for name in dnames]
 
-    if message.lower() in lowercase_names:
-        index = next(i for i, item in enumerate(names) if item.lower() == message.lower())
+    if ign.lower() in lowercase_names:
+        index = next(i for i, item in enumerate(names) if item.lower() == ign.lower())
 
         subtier = float(values[index])
         tier = math.floor(subtier)
@@ -712,8 +725,8 @@ async def player_stats(interaction: discord.Interaction,
 
         # distance check
         distance = "No records"
-        if message.lower() in lowercase_dnames:
-            dindex = next(i for i, item in enumerate(dnames) if item.lower() == message.lower())
+        if ign.lower() in lowercase_dnames:
+            dindex = next(i for i, item in enumerate(dnames) if item.lower() == ign.lower())
             distance = f"**{dvalues[dindex]} blocks** (**#{dindex+1}**)"
 
         # region
@@ -739,7 +752,7 @@ async def player_stats(interaction: discord.Interaction,
                         value=data,
                         inline=False)
 
-        if "sonata" in message.lower():
+        if "sonata" in ign.lower():
             embed.set_thumbnail(url=f"https://render.crafty.gg/3d/bust/Rainbow_Puppy9")
         else:
             embed.set_thumbnail(url=f"https://render.crafty.gg/3d/bust/{names[index]}")
@@ -750,7 +763,7 @@ async def player_stats(interaction: discord.Interaction,
 
         await interaction.followup.send(content=None, embed=embed)
     else:
-        embed = discord.Embed(title=f"{message}")
+        embed = discord.Embed(title=f"{ign}")
 
         embed.set_footer(text=f"Fruitbridging Tierlist Discord",
                          icon_url="https://cdn.modrinth.com/data/cached_images/ae331a16111960468ad56a3db0f1d0cdd7e1b4ed.png")
@@ -761,7 +774,7 @@ async def player_stats(interaction: discord.Interaction,
         await interaction.followup.send(content=None, embed=embed)
 
     return
-'''
+
 ##################
 ## HELP COMMAND ##
 ##################
@@ -775,12 +788,15 @@ async def help(interaction: discord.Interaction):
                                             "Prints the leaderboard for the specified category.\n"
                                             "`/player_stats <minecraft_ign>`\n"
                                             "Returns the stats of the specified player.\n"
+                                            "`/calculate_tier <tiers>`\n"
+                                            "Calculate your tier from a list of your method subtiers.\n"
                                             "`/tierlist`\n"
                                             "Sends a link to the tierlist spreadsheet.\n"
                                             "`/fun_fact`\n"
                                             "Finds an epic and cool math fact!\n"
                                             "`/say <message>`\n"
                                             "Ventriloquises fruitbridge bot.\n"
+
                                             )
     return
 
