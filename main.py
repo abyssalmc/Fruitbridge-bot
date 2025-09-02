@@ -2,7 +2,10 @@ import os,re,math,logging
 import random
 import time
 
+
+
 import discord
+from logging import Handler
 from dotenv import load_dotenv
 from discord.ext import commands
 from discord.utils import get
@@ -11,7 +14,6 @@ from discord.ui import View, button
 from datetime import datetime
 from itertools import zip_longest
 import asyncio
-
 import keep_alive
 
 from google.oauth2.service_account import Credentials
@@ -62,15 +64,53 @@ TIER_COLOURS = {
     1: 0x30a9ff, 2: 0xffcd36, 3: 0xff6f41, 4: 0xff82ad, 5: 0x886eff
 }
 
+class DiscordLogHandler(Handler):
+    """
+    A logging.Handler that sends LogRecords into a Discord text‐channel.
+    """
+    def __init__(self, bot: commands.Bot, channel_name: str = "logs", level=logging.INFO):
+        super().__init__(level)
+        self.bot = bot
+        self.channel_name = channel_name
+        self.channel: discord.TextChannel | None = None
+        self.setFormatter(logging.Formatter("%(asctime)s %(levelname)s: %(message)s"))
+
+    async def init_channel(self):
+        await self.bot.wait_until_ready()
+        for guild in self.bot.guilds:
+            ch = get(guild.text_channels, name=self.channel_name)
+            if ch:
+                self.channel = ch
+                break
+
+    def emit(self, record: logging.LogRecord):
+        if self.channel is None:
+            # first time: schedule channel lookup
+            asyncio.create_task(self.init_channel())
+
+        msg = self.format(record)
+        if self.channel:
+            # wrap in code‐block for readability
+            content = f"```{msg}```"
+            asyncio.create_task(self.channel.send(content))
+
 
 @bot.event
 async def on_ready():
+    root_logger = logging.getLogger()
+    if not any(isinstance(h, DiscordLogHandler) for h in root_logger.handlers):
+        discord_handler = DiscordLogHandler(bot, channel_name="logs", level=logging.INFO)
+        root_logger.addHandler(discord_handler)
+        logging.info("✅ DiscordLogHandler installed, forwarding logs to #logs")
+
     # sync commands
     try:
         synced = await bot.tree.sync()
         print(f"Synced {len(synced)} slash command(s).")
     except Exception as e:
         print(f"Error syncing commands: {e}")
+
+
 
     # add roles
     for guild in bot.guilds:
@@ -149,6 +189,8 @@ def col_num_to_letter(n: int) -> str:
         n, rem = divmod(n-1, 26)
         letters = chr(65 + rem) + letters
     return letters
+def ensure_decimal(s: str) -> str:
+    return s if "." in s else s + ".0"
 
 @bot.tree.command(
     name="result",
@@ -169,13 +211,17 @@ async def result(interaction: discord.Interaction,
             ephemeral=True)
         return
 
+    ign = ign.replace(" ", "")
+
     await interaction.response.defer(thinking=False)
 
     countries, names, values = get_12b_data()
+    names = [s.replace(" ", "") for s in names]
+
     lowercase_names = [name.lower() for name in names]
 
     if ign.lower() in lowercase_names:
-        index = next(i for i, item in enumerate(names) if item.lower() == ign.lower())
+        index = next(i for i, item in enumerate(names) if item.lower().replace(" ", "") == ign.lower())
     else:
         await interaction.response.send_message(
             content="This player isn't on the leaderboard!",
@@ -210,9 +256,9 @@ async def result(interaction: discord.Interaction,
     print(range_below)
 
     cells_below = sheet.values().get(spreadsheetId=sheet_id, range=range_below).execute().get('values', [])
-    m1 = f"{cells_below[0][0]} ({cells_below[0][1]})"
-    m2 = f"{cells_below[1][0]} ({cells_below[1][1]})"
-    m3 = f"{cells_below[2][0]} ({cells_below[2][1]})"
+    m1 = f"{cells_below[0][0]} ({ensure_decimal(cells_below[0][1])})"
+    m2 = f"{cells_below[1][0]} ({ensure_decimal(cells_below[1][1])})"
+    m3 = f"{cells_below[2][0]} ({ensure_decimal(cells_below[2][1])})"
 
 
     embed.add_field(name="Hardest methods",
@@ -233,15 +279,14 @@ async def result(interaction: discord.Interaction,
 
     if region != "Unknown":
         ranks_above = 0
-        if index == 0:
-            ranks_above = 1
 
         for i in range(index):
             temp_region = country_to_region.get(countries[index - i], "Unknown")
             if temp_region == region:
                 ranks_above += 1
 
-
+    if region == country_to_region.get(countries[0], "Unknown"):
+        ranks_above += 1
 
     embed.add_field(name="Placement",
                     value=f"Subtier: **{subtier} (#{index+1})**\n"
@@ -705,12 +750,18 @@ async def player_stats(interaction: discord.Interaction,
     await interaction.response.defer(thinking=False)
 
     countries, names, values = get_12b_data()
+    names = [s.replace(" ", "") for s in names]
     dcountries, dnames, dvalues = get_distance_data("B3:E55")
+    dnames = [s.replace(" ", "") for s in dnames]
 
     lowercase_names = [name.lower() for name in names]
+
     lowercase_dnames = [name.lower() for name in dnames]
 
+
+
     if ign.lower() in lowercase_names:
+
         index = next(i for i, item in enumerate(names) if item.lower() == ign.lower())
 
         subtier = float(values[index])
@@ -718,7 +769,7 @@ async def player_stats(interaction: discord.Interaction,
         half_tier = math.floor(subtier * 2) % 2
         full_tier = f"HT{tier}  {TIER_EMOJIS.get(tier)}" if half_tier == 0 else f"LT{tier}  {TIER_EMOJIS.get(tier)}"
 
-        embed = discord.Embed(title=f"{names[index]}",
+        embed = discord.Embed(title=f"{names[index].replace("_", "\\_")}",
                               colour=TIER_COLOURS.get(tier)
                               )
         title = ""
@@ -727,21 +778,22 @@ async def player_stats(interaction: discord.Interaction,
         distance = "No records"
         if ign.lower() in lowercase_dnames:
             dindex = next(i for i, item in enumerate(dnames) if item.lower() == ign.lower())
-            distance = f"**{dvalues[dindex]} blocks** (**#{dindex+1}**)"
+            distance = f"**{dvalues[dindex]} blocks** **(#{dindex+1})**"
 
         # region
         region = country_to_region.get(countries[index], "Unknown")
 
         if region != "Unknown":
             ranks_above = 0
-            if index == 0:
-                ranks_above = 1
 
             for i in range(index):
                 temp_region = country_to_region.get(countries[index-i], "Unknown")
                 if temp_region == region:
                     ranks_above += 1
 
+
+        if region == country_to_region.get(countries[0], "Unknown"):
+            ranks_above += 1
 
         data = (f"Tier: **{full_tier}**\n"
                 f"Subtier: **{subtier}** **(#{index+1})**\n"
@@ -763,7 +815,7 @@ async def player_stats(interaction: discord.Interaction,
 
         await interaction.followup.send(content=None, embed=embed)
     else:
-        embed = discord.Embed(title=f"{ign}")
+        embed = discord.Embed(title=f"{ign.replace("_", "\\_")}")
 
         embed.set_footer(text=f"Fruitbridging Tierlist Discord",
                          icon_url="https://cdn.modrinth.com/data/cached_images/ae331a16111960468ad56a3db0f1d0cdd7e1b4ed.png")
