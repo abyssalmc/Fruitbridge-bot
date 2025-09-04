@@ -64,44 +64,11 @@ TIER_COLOURS = {
     1: 0x30a9ff, 2: 0xffcd36, 3: 0xff6f41, 4: 0xff82ad, 5: 0x886eff
 }
 
-class DiscordLogHandler(Handler):
-    """
-    A logging.Handler that sends LogRecords into a Discord text‐channel.
-    """
-    def __init__(self, bot: commands.Bot, channel_name: str = "logs", level=logging.INFO):
-        super().__init__(level)
-        self.bot = bot
-        self.channel_name = channel_name
-        self.channel: discord.TextChannel | None = None
-        self.setFormatter(logging.Formatter("%(asctime)s %(levelname)s: %(message)s"))
 
-    async def init_channel(self):
-        await self.bot.wait_until_ready()
-        for guild in self.bot.guilds:
-            ch = get(guild.text_channels, name=self.channel_name)
-            if ch:
-                self.channel = ch
-                break
-
-    def emit(self, record: logging.LogRecord):
-        if self.channel is None:
-            # first time: schedule channel lookup
-            asyncio.create_task(self.init_channel())
-
-        msg = self.format(record)
-        if self.channel:
-            # wrap in code‐block for readability
-            content = f"```{msg}```"
-            asyncio.create_task(self.channel.send(content))
 
 
 @bot.event
 async def on_ready():
-    root_logger = logging.getLogger()
-    if not any(isinstance(h, DiscordLogHandler) for h in root_logger.handlers):
-        discord_handler = DiscordLogHandler(bot, channel_name="logs", level=logging.INFO)
-        root_logger.addHandler(discord_handler)
-        logging.info("✅ DiscordLogHandler installed, forwarding logs to #logs")
 
     # sync commands
     try:
