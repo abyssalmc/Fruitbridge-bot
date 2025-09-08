@@ -124,7 +124,7 @@ async def calculate_tier(interaction: discord.Interaction, subtiers: str):
     half_tier = math.floor(calculated_subtier * 2) % 2
     full_tier = f"HT{tier} {TIER_EMOJIS.get(tier)}" if half_tier == 0 else f"LT{tier} {TIER_EMOJIS.get(tier)}"
 
-    await interaction.response.send_message(f"This will give **{full_tier}** with a subtier of **{calculated_subtier:.2f}**.")
+    await interaction.response.send_message(f"This will give **{full_tier}** with a subtier of **{math.floor(calculated_subtier * 100) / 100}**.")
     return
 
 
