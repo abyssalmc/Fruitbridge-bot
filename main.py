@@ -1,11 +1,9 @@
+# i apologise for not writing this in a particularly readable way
+
 import os,re,math,logging
 import random
-import time
-
-
 
 import discord
-from logging import Handler
 from dotenv import load_dotenv
 from discord.ext import commands
 from discord.utils import get
@@ -14,7 +12,6 @@ from discord.ui import View, button
 from datetime import datetime
 from itertools import zip_longest
 import asyncio
-import keep_alive
 
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
@@ -29,8 +26,6 @@ credentials = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes
 service = build('sheets', 'v4', credentials=credentials)
 sheet = service.spreadsheets()
 
-keep_alive.keep_alive()
-
 load_dotenv()
 TOKEN, GUILD_ID = os.getenv('DISCORD_TOKEN'), 1402945521957470228
 
@@ -44,18 +39,6 @@ intents.members = True
 bot = commands.Bot(command_prefix='!', intents=intents, status=discord.Status.do_not_disturb)
 
 
-# 1) configure root logger
-logging.basicConfig(level=logging.INFO,
-                    format="%(asctime)s %(levelname)8s %(name)s: %(message)s")
-
-# 2) crank up discord.py HTTP to DEBUG
-logging.getLogger("discord.http").setLevel(logging.DEBUG)
-
-# (optionally) quiet some of the noisier libraries
-logging.getLogger("websockets").setLevel(logging.INFO)
-logging.getLogger("discord.gateway").setLevel(logging.INFO)
-
-
 TIER_EMOJIS = {
     1: "💎", 2: "👑", 3: "🏆", 4: "⭐", 5: "✨",
 }
@@ -64,8 +47,9 @@ TIER_COLOURS = {
     1: 0x30a9ff, 2: 0xffcd36, 3: 0xff6f41, 4: 0xff82ad, 5: 0x886eff
 }
 
-
-
+#############
+## STARTUP ##
+#############
 
 @bot.event
 async def on_ready():
@@ -77,9 +61,8 @@ async def on_ready():
     except Exception as e:
         print(f"Error syncing commands: {e}")
 
-
-
     # add roles
+    '''
     for guild in bot.guilds:
         role = get(guild.roles, name="Fruitbridger 🍏")
 
@@ -92,9 +75,9 @@ async def on_ready():
                 await asyncio.sleep(1)
             except Exception as e:
                 print(f"   [ERROR] Failed on {member}: {e}")
+    '''
 
-
-
+    # online status confirmation
     print(f"Fruitbridge bot is now online. ({bot.user})")
 
 
@@ -150,6 +133,7 @@ async def calculate_tier(interaction: discord.Interaction, subtiers: str):
 ## RESULT COMMAND ##
 ####################
 
+# convert google sheets column index to a string, such as 29 -> AC
 def col_num_to_letter(n: int) -> str:
     letters = ""
     while n:
@@ -159,6 +143,7 @@ def col_num_to_letter(n: int) -> str:
 def ensure_decimal(s: str) -> str:
     return s if "." in s else s + ".0"
 
+# result command info
 @bot.tree.command(
     name="result",
     description="Make a tier test result for Java 12b"
@@ -167,6 +152,7 @@ def ensure_decimal(s: str) -> str:
     ign="Minecraft username (e.g. AbyssalMC)",
     tag="Discord tag (e.g. @abyssal)",
 )
+# result command handling
 async def result(interaction: discord.Interaction,
     ign: str,
     tag: discord.Member,
@@ -194,7 +180,6 @@ async def result(interaction: discord.Interaction,
             content="This player isn't on the leaderboard!",
             ephemeral=True)
         return
-
 
 
     # get full tier
@@ -304,6 +289,7 @@ async def result(interaction: discord.Interaction,
 ######################
 ## FUN FACT COMMAND ##
 ######################
+# fact list
 facts = [
     "between any two irrational numbers there are infinitely many rationals.\nyet the the irrational set is uncountably larger than the rationals.",
     "the sum of the reciprocals of the primes diverges (even though primes get rarer).\n1/2 + 1/3 + 1/5 + 1/7 + /11 + ... -> ∞ ",
@@ -342,6 +328,7 @@ facts = [
     "if something has a 1/x chance and you do it x times theres around a 63 percent chance that it happens (for large x), which asymptotically approaches 1 - 1/e.",
     "it will on average take 145 rolls to go through this whole list."
 ]
+# fun fact command handling
 @bot.tree.command(
     name="fun_fact",
     description="Find an epic super cool math fact!"
@@ -358,7 +345,6 @@ async def result(interaction: discord.Interaction):
     name="tierlist",
     description="Send the tierlist document, containing methods and leaderboard rankings!"
 )
-
 async def result(interaction: discord.Interaction):
     await interaction.response.send_message("The tierlist can be found in <#1145284239126958131>, or by following [this link](https://docs.google.com/spreadsheets/d/1LlWii5IAM34-Dlei9wZfDm6lMjdrFvGX7F5-tJgd35s/).")
     return
@@ -381,6 +367,7 @@ async def on_guild_channel_create(channel):
 ## LEADERBOARD COMMAND ##
 #########################
 
+# honestly no idea wtf this is i just yoinked it
 class Paginator(View):
     def __init__(self, embeds: list[discord.Embed], author: discord.User):
         super().__init__(timeout=180)  # timeout in seconds
@@ -467,8 +454,6 @@ class DropdownPages(discord.ui.Select):
         # edit the message with the new embed + updated view
         embed = self.pages[self.current_page]
         await interaction.response.edit_message(embed=embed, view=self.view)
-
-
 class PaginationView(discord.ui.View):
     def __init__(self, pages, author: discord.User, *, timeout=120):
         super().__init__(timeout=timeout)
@@ -491,6 +476,7 @@ def trim_trailing_empty(lst):
         lst.pop()
     return lst
 
+# fetch data 12b from tierlist spreadsheet
 def get_12b_data():
     shit = sheet.values().get(spreadsheetId=sheet_id, range='Leaderboard!B3:Y34').execute().get('values', [])
     shit = list(zip_longest(*shit, fillvalue=""))
@@ -504,7 +490,7 @@ def get_12b_data():
     values = [s for s in values if s.strip()]
 
     return [countries, names, values]
-
+# fetch distance data
 def get_distance_data(selection):
 
     shit = sheet.values().get(spreadsheetId=sheet_id, range=f'Distance!{selection}').execute().get('values', [])
@@ -520,7 +506,7 @@ def get_distance_data(selection):
 
     return countries, names, values
 
-
+# leaderboard command info
 @bot.tree.command(
     name="leaderboard",
     description="Print the leaderboard for the specified category"
@@ -532,7 +518,7 @@ def get_distance_data(selection):
     app_commands.Choice(name="Java 12b", value="java_12b"),
     app_commands.Choice(name="Distance", value="distance")
 ])
-
+# leaderboard command handling
 async def leaderboard(interaction: discord.Interaction,
     category: app_commands.Choice[str]
     ):
@@ -833,9 +819,5 @@ async def on_member_join(member: discord.Member):
         print(f"[ERROR] Failed to add role: {e}")
 
 
-
-
 bot.run(TOKEN)
 
-
-# /result ign:AbyssalMC tag:@abyssalmc method1:Waterlog detector rail (1.2) method2:TNT ignite (1.4) method3:Survival waterlog (1.5) subtier:1.415 rank:2
