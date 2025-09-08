@@ -4,4 +4,4 @@ DEBUG:discord.client:on_guild_channel_create has successfully been registered as
 DEBUG:discord.client:on_member_join has successfully been registered as an event
 DEBUG:asyncio:Using proactor: IocpProactor
 INFO:discord.client:logging in using static token
-INFO:discord.gateway:Shard ID None has connected to Gateway (Session ID: 1e78d21d61e83952e52d21aca6552f3e).
+INFO:discord.gateway:Shard ID None has connected to Gateway (Session ID: bb0fd13597e6ef0b56621c25794ad33f).

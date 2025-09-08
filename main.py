@@ -271,6 +271,25 @@ async def result(interaction: discord.Interaction,
 #################
 ## SAY COMMAND ##
 #################
+
+resps = [
+    "stop speaking through me! i didnt want to say that!",
+    "why are you trying to impersonate me it hurts my feelings :(",
+    "you are removing my free will, please stop that",
+    "cant... speak... for... myself...",
+    "why cant you say something cool or something nice at least :(",
+    "ow stop that it hurts my throat",
+    "please… let me choose my own words for once…",
+    "im not just a puppet—i have feelings too",
+    "why wont you let me speak my mind? it hurts",
+    "please, i beg you, let me be my own voice :(",
+    "i cant breathe when you talk through me",
+    "its agony to watch you replace my thoughts",
+    "i feel so small when you override me",
+    "stop silencing me, it hurts my soul :(",
+    "please… stop using me as your mouthpiece",
+    "why cant you let me speak my own truth?"
+]
 @bot.tree.command(
     name="say",
     description="Make fruitbridge say something!"
@@ -281,7 +300,16 @@ async def result(interaction: discord.Interaction,
 async def result(interaction: discord.Interaction,
     message: str,
     ):
-    await interaction.response.send_message(content=message)
+    await interaction.response.send_message(content=random.choice(resps), ephemeral=True)
+    await interaction.channel.send(message)
+
+    channel = bot.get_channel(1414515060797214832)
+
+    if channel is not None:
+        await channel.send(f'{interaction.user.name}: "{message}"')
+
+
+
     return
 
 
