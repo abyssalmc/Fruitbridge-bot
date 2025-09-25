@@ -1025,15 +1025,23 @@ async def save_image(ctx: commands.Context):
         await ctx.send(f"✅ Saved: {', '.join(saved_files)}")
 
 last_reset = time.time()
+last_imgstr = ""
 
-@tasks.loop(seconds=10)
+@tasks.loop(seconds=5)
 async def slideshow():
-    global last_reset
+    global last_reset, last_imgstr
 
     # title_topic.png
     pool = [f for f in os.listdir("images")]
 
+
     imgstr = random.choice(pool)
+
+    while imgstr == last_imgstr:
+        imgstr = random.choice(pool)
+
+    last_imgstr = imgstr
+
     parts = imgstr.removesuffix(".png").split('_')
 
     image = cv2.imread(f"images/{imgstr}")
@@ -1105,7 +1113,7 @@ async def slideshow():
 
         cv2.waitKey(1)
 
-        if time.time() - last_reset > 60:
+        if time.time() - last_reset > 3600:
             cv2.destroyWindow("mister red")
             cv2.namedWindow("mister red", cv2.WND_PROP_FULLSCREEN)
             cv2.setWindowProperty("mister red", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
