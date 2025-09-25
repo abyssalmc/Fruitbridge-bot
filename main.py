@@ -937,7 +937,7 @@ async def player_stats(interaction: discord.Interaction,
 
         await interaction.followup.send(content=None, embed=embed)
     else:
-        embed = discord.Embed(title=f'{ign.replace("_", "\\_")}')
+        embed = discord.Embed(title=ign.replace("_", "\\_"))
 
         embed.set_footer(text=f"Fruitbridging Tierlist Discord",
                          icon_url="https://cdn.modrinth.com/data/cached_images/ae331a16111960468ad56a3db0f1d0cdd7e1b4ed.png")
