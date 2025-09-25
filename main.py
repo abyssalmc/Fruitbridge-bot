@@ -1027,7 +1027,7 @@ async def save_image(ctx: commands.Context):
 last_reset = time.time()
 last_imgstr = ""
 
-@tasks.loop(seconds=5)
+@tasks.loop(seconds=30)
 async def slideshow():
     global last_reset, last_imgstr
 
