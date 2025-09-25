@@ -325,7 +325,8 @@ async def result(interaction: discord.Interaction,
     half_tier = math.floor(subtier * 2) % 2
     full_tier = f"HT{tier}  {TIER_EMOJIS.get(tier)}" if half_tier == 0 else f"LT{tier}  {TIER_EMOJIS.get(tier)}"
 
-    embed = discord.Embed(title=f'{ign.replace("_", "\\_")} has passed **{full_tier}** 🎉',
+    fixed_name = ign.replace("_", "\\_")
+    embed = discord.Embed(title=f'{fixed_name} has passed **{full_tier}** 🎉',
                           colour=TIER_COLOURS.get(tier),
                           timestamp=datetime.now())
 
@@ -719,7 +720,8 @@ async def leaderboard(interaction: discord.Interaction,
             intmax = int(max)
 
             for j in range(10 * i, 10 * i + intmax):
-                lb_string += f'`{values[j]}` ​ {names[j].replace("_", "\\_")} :flag_{countries[j].lower()}:\n'
+                fixed_name = names[j].replace("_", "\\_")
+                lb_string += f'`{values[j]}` ​ {fixed_name} :flag_{countries[j].lower()}:\n'
 
             embed.add_field(name=title,
                             value=lb_string,
@@ -761,7 +763,8 @@ async def leaderboard(interaction: discord.Interaction,
             # data
             max_len = len(values[i][0])
             for j in range(min(10, len(values[i]))):
-                lb_string += f'`{values[i][j].rjust(max_len)}` ​ {names[i][j].replace("_", "\\_")} :flag_{countries[i][j].lower()}:\n'
+                fixed_name = names[i][j].replace("_", "\\_")
+                lb_string += f'`{values[i][j].rjust(max_len)}` ​ {fixed_name} :flag_{countries[i][j].lower()}:\n'
 
             embed.add_field(name=title,
                             value=lb_string,
@@ -887,7 +890,8 @@ async def player_stats(interaction: discord.Interaction,
         half_tier = math.floor(subtier * 2) % 2
         full_tier = f"HT{tier}  {TIER_EMOJIS.get(tier)}" if half_tier == 0 else f"LT{tier}  {TIER_EMOJIS.get(tier)}"
 
-        embed = discord.Embed(title=f'{names[index].replace("_", "\\_")}',
+        fixed_name = names[index].replace("_", "\\_")
+        embed = discord.Embed(title=f'{fixed_name}',
                               colour=TIER_COLOURS.get(tier)
                               )
         title = ""
