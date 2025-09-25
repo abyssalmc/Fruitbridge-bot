@@ -2,6 +2,8 @@
 
 import os,re,math,logging
 import random
+import time
+
 import discord
 from dotenv import load_dotenv
 from discord.ext import commands
@@ -11,6 +13,19 @@ from discord.ui import View, button
 from datetime import datetime
 from itertools import zip_longest
 import asyncio
+
+import cv2
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
+import math
+
+import requests
+import logging
+
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
@@ -24,6 +39,7 @@ sheet_id = '1LlWii5IAM34-Dlei9wZfDm6lMjdrFvGX7F5-tJgd35s'
 credentials = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPE)
 service = build('sheets', 'v4', credentials=credentials)
 sheet = service.spreadsheets()
+
 
 load_dotenv()
 TOKEN, GUILD_ID = os.getenv('DISCORD_TOKEN'), 1402945521957470228
@@ -846,5 +862,147 @@ async def on_member_join(member: discord.Member):
         print(f"[ERROR] Failed to add role: {e}")
 
 
+##############
+## ADD NOTE ##
+##############
+
+@bot.command(name="addnote")
+async def save_image(ctx: commands.Context):
+
+    attachments = ctx.message.attachments
+    if not attachments:
+        return await ctx.send("📎 Please attach one or more images to save.")
+
+    # Ensure directory exists
+    save_dir = "images"
+    os.makedirs(save_dir, exist_ok=True)
+
+    saved_files = []
+    for attachment in attachments:
+        # Simple check for image extensions
+        if any(attachment.filename.lower().endswith(ext) for ext in (".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp")):
+            save_path = os.path.join(save_dir, attachment.filename)
+            try:
+                # discord.py provides Attachment.save()
+                await attachment.save(fp=save_path)
+                saved_files.append(attachment.filename)
+            except Exception as e:
+                await ctx.send(f"❌ Failed to save `{attachment.filename}`: {e}")
+        else:
+            await ctx.send(f"⚠️ Skipping non‐image file `{attachment.filename}`")
+
+    if saved_files:
+        await ctx.send(f"✅ Saved: {', '.join(saved_files)}")
+
 bot.run(TOKEN)
 
+
+image = cv2.imread('images/test_image.png')
+
+weather_sunny = cv2.imread('weather/weather_0.png')
+weather_overcast = cv2.imread('weather/weather_1.png')
+weather_rain = cv2.imread('weather/weather_2.png')
+weather_thunder = cv2.imread('weather/weather_3.png')
+weather_moony = cv2.imread('weather/weather_4.png')
+weather_unknown = cv2.imread('weather/weather_5.png')
+
+
+# get weather info
+def get_local_weather():
+    lat, lon = -33.94939637463558, 151.25811240419085
+
+    url = "https://api.open-meteo.com/v1/forecast"
+    params = {
+        "latitude": lat,
+        "longitude": lon,
+        "current_weather": "true",
+        # optionally specify timezone, e.g. "Australia/Sydney"
+        "timezone": "Australia/Sydney"
+    }
+
+    try:
+        # give it a timeout so it won't hang if the network is down
+        r = requests.get(url, params=params, timeout=5.0)
+        r.raise_for_status()
+
+        payload = r.json()
+        data = payload.get("current_weather")
+        if not data:
+            logger.error("No 'current_weather' in response: %r", payload)
+            return None
+
+        return {
+            "temperature_c": data["temperature"],
+            "windspeed_kmh": data["windspeed"],
+            "winddirection_deg": data["winddirection"],
+            "weather_code": data["weathercode"]
+        }
+
+    except:
+        return None
+
+# map weather to code
+WMO_TO_CAT = {
+    # sunny
+    0: 0,   # Clear sky
+    1: 0,   # Mainly clear
+    2: 0,   # Partly cloudy
+
+    # overcast / other (fog, snow, etc.)
+    3: 1,   # Overcast
+    45: 1,  # Fog
+    48: 1,  # Depositing rime fog
+    71: 1,  # Snow fall: Slight
+    73: 1,  # Snow fall: Moderate
+    75: 1,  # Snow fall: Heavy
+    77: 1,  # Snow grains
+    85: 1,  # Snow showers: Slight
+    86: 1,  # Snow showers: Heavy
+
+    # rain / drizzle / freezing rain
+    51: 2,  # Drizzle: Light
+    53: 2,  # Drizzle: Moderate
+    55: 2,  # Drizzle: Dense
+    56: 2,  # Freezing Drizzle: Light
+    57: 2,  # Freezing Drizzle: Dense
+    61: 2,  # Rain: Slight
+    63: 2,  # Rain: Moderate
+    65: 2,  # Rain: Heavy
+    66: 2,  # Freezing Rain: Light
+    67: 2,  # Freezing Rain: Heavy
+    80: 2,  # Rain showers: Slight
+    81: 2,  # Rain showers: Moderate
+    82: 2,  # Rain showers: Violent
+
+    # thunder
+    95: 3,  # Thunderstorm: Slight or moderate
+    96: 3,  # Thunderstorm with slight hail
+    99: 3,  # Thunderstorm with heavy hail
+
+    # unknown
+    -1: 4,  # Thunderstorm with heavy hail
+}
+
+def categorise_wmo(code: int) -> int:
+    return WMO_TO_CAT.get(code, 1)
+
+
+# create text on canvas
+def create_text(text, x, y, size, font):
+    font = ImageFont.truetype(font, size=size)
+    bbox = draw.textbbox((0, 0), text, font=font)
+    text_w = bbox[2] - bbox[0]
+    text_h = bbox[3] - bbox[1]
+    # Draw the text (Pillow is RGB)
+    if x == -1:
+        x = (canvas.shape[1] - text_w) // 2
+
+    if x == -2:
+        x = (790 - text_w)
+
+    if x == -3:
+        x = (662 - text_w)
+
+
+
+    draw.text((x, y), text, font=font, fill=(255, 255, 255))
