@@ -212,6 +212,7 @@ async def on_ready():
     print(f"Fruitbridge bot is now online. ({bot.user})\n")
 
     cv2.namedWindow("mister red", cv2.WND_PROP_FULLSCREEN)
+    cv2.setWindowProperty("mister red", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
     slideshow.start()
     print(f"Starting slideshow...")
@@ -1023,9 +1024,11 @@ async def save_image(ctx: commands.Context):
     if saved_files:
         await ctx.send(f"✅ Saved: {', '.join(saved_files)}")
 
+last_reset = time.time()
 
 @tasks.loop(seconds=10)
 async def slideshow():
+    global last_reset
 
     # title_topic.png
     pool = [f for f in os.listdir("images")]
@@ -1038,6 +1041,7 @@ async def slideshow():
 
     if image is None:
         print("image could not be found")
+        return
     else:
         h, w, c = image.shape
 
@@ -1094,11 +1098,19 @@ async def slideshow():
         # Back to OpenCV (BGR)
         canvas = cv2.cvtColor(np.array(pil_im), cv2.COLOR_RGB2BGR)
 
+
         cv2.imshow("mister red", canvas)
 
 
 
-        cv2.waitKey(1000)
+        cv2.waitKey(1)
+
+        if time.time() - last_reset > 60:
+            cv2.destroyWindow("mister red")
+            cv2.namedWindow("mister red", cv2.WND_PROP_FULLSCREEN)
+            cv2.setWindowProperty("mister red", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+            last_reset = time.time()
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Window reset")
 
 
 @bot.command()
