@@ -172,7 +172,11 @@ WMO_TO_CAT = {
 }
 
 def categorise_wmo(code: int) -> int:
-    return WMO_TO_CAT.get(code, 1)
+    code = WMO_TO_CAT.get(code, 1)
+    if code == None:
+        return 0
+    else:
+        return WMO_TO_CAT.get(code, 1)
 
 
 
@@ -1033,6 +1037,11 @@ async def slideshow():
 
     # title_topic.png
     pool = [f for f in os.listdir("images")]
+    if last_imgstr in pool:
+        pool.remove(last_imgstr)
+
+
+    print(pool)
 
 
     imgstr = random.choice(pool)
@@ -1113,7 +1122,8 @@ async def slideshow():
 
         cv2.waitKey(1)
 
-        if time.time() - last_reset > 3600:
+
+        if time.time() - last_reset > 7200:
             cv2.destroyWindow("mister red")
             cv2.namedWindow("mister red", cv2.WND_PROP_FULLSCREEN)
             cv2.setWindowProperty("mister red", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
