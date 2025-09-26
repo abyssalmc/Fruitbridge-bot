@@ -127,7 +127,12 @@ def get_local_weather():
         }
 
     except:
-        return None
+        return {
+            "temperature_c": 99,
+            "windspeed_kmh": None,
+            "winddirection_deg": None,
+            "weather_code": 0
+        }
 
 # map weather to code
 WMO_TO_CAT = {
